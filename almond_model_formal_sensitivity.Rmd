@@ -1,0 +1,151 @@
+---
+title: "almond_model"
+author: "Steven Cognac"
+date: "4/19/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(here)
+library(pse)
+```
+
+```{r}
+# for formal sensitivity analysis it is useful to describe output in
+# several summary statistics - how about mean, max and min yield
+source(here("R/compute_almond_yield.R"))
+
+
+# Lets consider 3 of the parameters....
+factors = c("Tmincoeff1", "Tmincoeff2", "Pcoeff2")
+
+# Decide How many parameter sets to run
+nsets=100
+
+# choose distributions for parameters - this would come from
+# what you know about the likely range of variation
+q = c("qnorm", "qnorm", "qunif")
+q.arg = list(list(mean=-0.015,sd=0.005), list(mean=-0.0046, sd=0.001), list(min=0.00429, max=0.00431))
+
+# generate samples from LHS
+sens_almond = LHS(NULL,factors,nsets,q,q.arg)
+sens_pars = get.data(sens_almond)
+head(sens_pars)
+```
+# Read in Climate Date
+```{r}
+# read in the input data
+SB = read.table(here("data/clim.txt"))
+clim = SB
+
+
+
+# pmap is useful here - it is a map function that uses the actual names of input parameters
+
+yields = sens_pars %>% 
+  pmap(compute_almond_yield,clim=clim)
+
+# notice that what pmap returns is a list 
+head(yields)
+```
+
+
+```{r}
+# turn results in to a dataframe for easy display/analysis
+yieldsd = yields %>% 
+  map_dfr(`[`,c("maxyield","minyield","meanyield"))
+
+# to take advantage of LHS/pse functions for 
+# plotting interesting information we can send results back - 
+# results need to be in a matrix
+# each column is a different parameter set - we can use transpose (t)
+# and as.matrix to get there
+
+# tell is what links output to original LHS object
+
+sens_almond = pse::tell(sens_almond, t(as.matrix(yieldsd)),
+                        res.names=c("maxyield","minyield","meanyield"))
+```
+
+# Plot Results
+```{r}
+# now we use built in LHS functions to analyze parameter sensitivity
+pse::plotscatter(sens_almond, col="blue", cex=5)
+```
+
+In the first column, it shows `maxyield` is strongly correlated with `Pcoeff2` while the two temperature coefficients are not strongly correlated.
+
+
+```{r}
+# we can also plot results in interesting ways
+# turn sens_almond into a data frame - easier access to R plotting functions
+
+ggplot(yieldsd, aes(minyield, maxyield))+geom_point()+labs(y="Max Yield (as anomoly)", "Min Yield (as anomoly")
+```
+
+# Let's use boxplots to show magnitude of uncertaintity
+```{r}
+# add uncertainty bounds on our estimates
+tmp = yieldsd %>% gather(value="value", key="yield")
+
+# note that you don't see the ranges because of the scale (min yield anomoly much smaller than max) - here's a more informative way to graph
+ggplot(tmp, aes(yield, value, col=yield))+
+  geom_boxplot()+labs(y="Yield (as anomoly)")+
+  facet_wrap(~yield, scales="free" )
+```
+
+# Quantifying Uncertainty
+
+## Linear Relationships
+Three type of correlation coefficients useful when relationships b/t output and input are close to linear,
+
+ - Correlation coefficient: useful between out and each input (separately)
+ - Partial correlation coefficient: useful for multiple parameters
+    - Correlation of X and Y given Z
+        - Computed as the correlation of the *residuals* from linear regression of
+          - X with Z
+          - Y with Z
+ - Standardized regression coefficient
+
+## Non-linear Relationships
+Non-linear, but monotonic between x and y - you can rank transform x and y to developed
+
+ - Spearman Correlation Coefficient
+ - Partial Rank Correlation Coefficient
+
+
+PSE:TELL object has partial rank correlation coefficients
+```{r}
+# prcc's automatically generated and easy to plot
+pse::plotprcc(sens_almond)
+```
+
+```{r}
+# PRCC for all 3 output metrix
+sens_almond$res.names
+
+sens_almond$prcc
+```
+
+```{r}
+# correlation coefficient
+# compare PRCC with first correlation coefficient
+# recall
+head(yieldsd)
+
+sens_almond$prcc[1]
+```
+# Spearman Rank Coefficient
+```{r}
+# we can still use our sens_pars data frame - rows of parameters will be
+# match rows in the output from our use of pmap to run the model for all 
+# parameters
+cor(yieldsd$maxyield, sens_pars$Tmincoeff1, method="spearman")
+cor(yieldsd$maxyield, sens_pars$Tmincoeff2, method="spearman")
+cor(yieldsd$maxyield, sens_pars$Pcoeff2, method = "spearman")
+
+```
+

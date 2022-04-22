@@ -62,20 +62,6 @@ sens_conductance <- pse::tell(sens_crop_water, t(as.matrix(crop_water)),
 
 # Part C. Plot conductance estimates in a way that accounts for parameter uncertainty
 ```{r}
-# now we use built in LHS functions to analyze parameter sensitivity
-pse::plotscatter(sens_conductance, col="blue", cex=5)
-```
-
-# Part D. Plot conductance estimates against each of your parameters
-```{r}
-
-```
-
-
-
-# Let's use boxplots to show magnitude of uncertaintity
-```{r}
-# note that you don't see the ranges because of the scale (min yield anomoly much smaller than max) - here's a more informative way to graph
 hist <- ggplot(crop_water, aes(conductance)) +
   geom_histogram() +
   labs(subtitle = "Histogram",
@@ -88,6 +74,13 @@ box <- ggplot(crop_water, aes(conductance)) +
 
 (hist + box) + plot_annotation(title = "LHS Sensitivity Analysis of Atmospheric Conductance")
 ```
+
+# Part D. Plot conductance estimates against each of your parameters
+```{r}
+# now we use built in LHS functions to analyze parameter sensitivity
+pse::plotscatter(sens_conductance, col="blue", cex=5)
+```
+
 
 # Part E. Est. PRCC
 ```{r}

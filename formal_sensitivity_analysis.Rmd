@@ -54,6 +54,12 @@ sens_params = get.data(sens_crop_water)
 head(sens_params)
 ```
 
+```{r}
+ggplot(sens_params, aes(x = k_0, y = k_d)) +
+  geom_density_2d()
+```
+
+
 ## B. Run atmospheric conductance model for these parameters and return aerodynamic conductances
 
 ```{r}
@@ -108,3 +114,12 @@ pse::plotprcc(sens_conductance)
 *Discuss what your results tell you about how aerodynamic conductance varies with the different parameters? What does it suggest about what you should focus on if you want to reduce uncertainty in aerodynamic conductance estimates? Does this tell you anything about the sensitivity of plant water use to climate change?*
 
 Our model tells us that aerodynamic conductance is the most sensitive parameter to wind speed (v_m). Wind speed has the greatest affect on aerodynamic conductance as it has the strongest correlation. It suggests that we should focus on accurate wind speed measurements if we want to reduce uncertainty in aerodynamic conductance estimates. We can infer from general science behind climate change and its potential effect on wind speeds, that the predicted increase of extreme weather events could lead to higher wind speeds which correlates to higher aerodynamic conductance. In general, this would lead to greater evapotranspiration by plants and increased stress (i.e. energy use).
+
+
+
+
+```{r}
+# plot empirical cumulativer distribution
+plotecdf(sens_conductance, col="red", lwd=5, xlab="Atm Cond (mm/s)")
+```
+

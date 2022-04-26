@@ -20,7 +20,7 @@ crop_water_use = function(v_m, z_m, k_0=0.1, k_d=0.7, h) {
   # calculating atmospheric conductance
   conductance <- v_m / (6.25 * log((z_m - zd) / z0)^2)
   
-  return(list(conductance=conductance))
+  return(conductance)
 }
 
 

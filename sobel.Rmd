@@ -1,0 +1,115 @@
+---
+title: "sobel"
+author: "Steven Cognac"
+date: '2022-04-26'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(sensitivity)
+library(pse)
+library(tidyverse)
+library(gridExtra)
+library(purrr)
+
+library(here)
+library(patchwork)
+```
+
+```{r}
+source(here("R/crop_water_use.R"))
+source(here("R/Catm.R"))
+```
+
+```{r}
+# generate two examples of random number from parmeter distributions
+
+np=1000
+k_0 = rnorm(mean=0.1, sd=0.001, n=np)
+k_d = rnorm(mean=0.7, sd=0.007, n=np)
+v_m = rnorm(mean=250, sd=30, n=np)
+h = runif(min=950, max=1050, n=np)
+
+
+X1 = cbind.data.frame(k_0, k_d, v_m, h)
+
+# repeat sampling
+k_0 = rnorm(mean=0.1, sd=0.001, n=np)
+k_d = rnorm(mean=0.7, sd=0.007, n=np)
+v_m = rnorm(mean=250, sd=30, n=np)
+h = runif(min=950, max=1050, n=np)
+
+X2 = cbind.data.frame(k_0, k_d, v_m, h)
+
+# there are different versions of sobol functions that have different approaches for estimating parameters and indices, we use an approach implemented by jansen 
+
+sens_Catm_Sobol = sobolSalt(model = NULL, X1, X2, nboot = 100)
+
+
+# Take a look at the Sobol generated sensitivity object
+# your parameters sets for sensitivity analysis are in X
+
+# run model for all parameter sets
+# make sure you give the parameters names
+
+parms = as.data.frame(sens_Catm_Sobol$X)
+colnames(parms) = colnames(X1)
+res = pmap_dbl(parms, crop_water_use)
+
+
+sens_Catm_Sobol = sensitivity::tell(sens_Catm_Sobol,res, res.names="ga")
+
+# main effect:  partitions variance (main effect without co-variance) - sums approximately to one
+sens_Catm_Sobol$S
+```
+
+```{r}
+# useful to add names
+row.names(sens_Catm_Sobol$S) = colnames(parms)
+sens_Catm_Sobol$S
+```
+
+```{r}
+# total effect - accounts for parameter interactions
+row.names(sens_Catm_Sobol$T) = colnames(parms)
+sens_Catm_Sobol$T
+```
+
+
+```{r}
+print(sens_Catm_Sobol)
+```
+
+`
+```{r}
+# Frist order sensitivy or Main Effect
+# variance associated directly w/ paramater alone
+sens_Catm_Sobol$S
+
+# Total Effect
+# variance associated with parameter & interaction with other parameters
+sens_Catm_Sobol$T
+```
+
+```{r}
+# make a data frame for plotting
+both = cbind.data.frame(parms, gs=sens_Catm_Sobol$y)
+```
+
+```{r}
+# look at response of conductance to the two most important variables
+wind_speed <- ggplot(both, aes(x = v_m, y = gs, col=h)) +
+  geom_point() +
+  labs(y="Conductance (mm/s)", 
+       x="Windspeed")
+
+height <- ggplot(both, aes(x = h, y = gs, col=h)) +
+  geom_point() +
+  labs(y="Conductance (mm/s)", 
+       x="Height")
+
+(wind_speed / height) + plot_layout(guides = "collect")
+```
+
